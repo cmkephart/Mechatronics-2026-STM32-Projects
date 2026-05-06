@@ -15,3 +15,9 @@ RemoteSystemsTempFiles/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# IDE/Project specific settings
+**/.settings/
+**/.project
+**/.cproject
+**/.mxproject
