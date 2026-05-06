@@ -44,7 +44,9 @@
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-
+const char* modes[] = {"Plate", "Cup", "Bowl"};
+int current_mode = 0; // Index to keep track of selection
+int state = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -58,6 +60,90 @@ static void MX_TIM2_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+// --- Pulse the Enable pin to latch data ---
+static void LCD_Pulse_Enable(void)
+{
+    HAL_GPIO_WritePin(GPIOA, E_Pin, GPIO_PIN_SET);
+    HAL_Delay(1);
+    HAL_GPIO_WritePin(GPIOA, E_Pin, GPIO_PIN_RESET);
+    HAL_Delay(1);
+}
+
+// --- Send the upper nibble (bits 7-4) via D4-D7 ---
+static void LCD_Send_Nibble(uint8_t nibble)
+{
+    HAL_GPIO_WritePin(D4_GPIO_Port,  D4_Pin, (nibble >> 0) & 1);
+    HAL_GPIO_WritePin(GPIOC,         D5_Pin, (nibble >> 1) & 1);
+    HAL_GPIO_WritePin(GPIOC,         D6_Pin, (nibble >> 2) & 1);
+    HAL_GPIO_WritePin(GPIOC,         D7_Pin, (nibble >> 3) & 1);
+    LCD_Pulse_Enable();
+}
+
+// --- Send a full byte as two nibbles ---
+static void LCD_Send_Byte(uint8_t byte, uint8_t rs)
+{
+    HAL_GPIO_WritePin(RS_GPIO_Port, RS_Pin, rs);   // RS=0: command, RS=1: data
+    LCD_Send_Nibble(byte >> 4);             // High nibble first
+    LCD_Send_Nibble(byte & 0x0F);           // Low nibble second
+    HAL_Delay(2);
+}
+
+// --- Initialize the LCD in 4-bit mode ---
+static void LCD_Init(void)
+{
+    HAL_Delay(50);                          // Wait for LCD power-up
+
+    // Special 3-step init to reliably enter 4-bit mode
+    HAL_GPIO_WritePin(RS_GPIO_Port, RS_Pin, GPIO_PIN_RESET);
+    LCD_Send_Nibble(0x03); HAL_Delay(5);
+    LCD_Send_Nibble(0x03); HAL_Delay(1);
+    LCD_Send_Nibble(0x03); HAL_Delay(1);
+    LCD_Send_Nibble(0x02); HAL_Delay(1);    // Switch to 4-bit mode
+
+    LCD_Send_Byte(0x28, 0);                 // 4-bit, 2 lines, 5x8 font
+    LCD_Send_Byte(0x0C, 0);                 // Display ON, cursor OFF, blink OFF
+    LCD_Send_Byte(0x06, 0);                 // Entry mode: increment, no shift
+    LCD_Send_Byte(0x01, 0);                 // Clear display
+    HAL_Delay(2);                           // Clear needs extra time
+}
+
+// --- Print a string at the current cursor position ---
+static void LCD_Print(const char *str)
+{
+    while (*str)
+        LCD_Send_Byte((uint8_t)*str++, 1);
+}
+
+// --- Move cursor: row 0 or 1, col 0-15 ---
+static void LCD_Set_Cursor(uint8_t row, uint8_t col)
+{
+    uint8_t addr = (row == 0) ? (0x80 + col) : (0xC0 + col);
+    LCD_Send_Byte(addr, 0);
+}
+
+void delay_us(uint32_t us)
+{
+    __HAL_TIM_SET_COUNTER(&htim2, 0);
+    while (__HAL_TIM_GET_COUNTER(&htim2) < us);
+}
+
+uint32_t Ultrasonic_Read(void)
+{
+    HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_SET);
+    delay_us(10);
+    HAL_GPIO_WritePin(TRIG_GPIO_Port, TRIG_Pin, GPIO_PIN_RESET);
+
+    uint32_t timeout = 0;
+    while (HAL_GPIO_ReadPin(ECHO_GPIO_Port, ECHO_Pin) == GPIO_PIN_RESET)
+    {
+        timeout++;
+        if (timeout > 100000) return 0;
+    }
+
+    __HAL_TIM_SET_COUNTER(&htim2, 0);
+    while (HAL_GPIO_ReadPin(ECHO_GPIO_Port, ECHO_Pin) == GPIO_PIN_SET);
+    return __HAL_TIM_GET_COUNTER(&htim2);
+}
 /* USER CODE END 0 */
 
 /**
@@ -92,6 +178,22 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
+	HAL_TIM_Base_Start(&htim2);
+	LCD_Init();
+  LCD_Set_Cursor(0, 0);
+  LCD_Print("Dirty Dishes!");
+
+  char buf[4];
+  for (int i = 5; i >= 1; i--)
+  {
+      LCD_Set_Cursor(1, 0);       // Row 2, column 0
+      sprintf(buf, "%d", i);
+      LCD_Print(buf);
+      HAL_Delay(1000);
+  }
+
+  LCD_Send_Byte(0x01, 0);         // Clear display
+  HAL_Delay(2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -101,6 +203,30 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	    char row1[32];
+	    char row2[32];
+
+	    uint32_t echo_us = Ultrasonic_Read();
+	    uint32_t dist_whole = echo_us / 58;
+	    uint32_t dist_frac  = (echo_us % 58) * 10 / 58;
+
+	    // Add a section of code here that changes an index of a variable whenever
+	    // the button for cycling modes is pressed
+if(state == 0)
+	{
+	    sprintf(row1, "Select Mode: %-10s", modes[current_mode]);
+	    sprintf(row2, "Time: %lu us        ", echo_us);
+
+	    row1[16] = '\0';
+	    row2[16] = '\0';
+
+	    LCD_Set_Cursor(0, 0);
+	    LCD_Print(row1);
+	    LCD_Set_Cursor(1, 0);
+	    LCD_Print(row2);
+
+	    HAL_Delay(200);
+	}
   }
   /* USER CODE END 3 */
 }
