@@ -56,7 +56,7 @@ static void MX_GPIO_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-//github test idk anymore df
+//github test idk
 /* USER CODE END 0 */
 
 /**
