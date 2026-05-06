@@ -1,1 +1,17 @@
-/.metadata/
+# IDE specific
+.metadata/
+RemoteSystemsTempFiles/
+
+# Compiled outputs (The heavy stuff)
+**/Debug/
+**/Release/
+**/*.elf
+**/*.list
+**/*.map
+**/*.o
+**/*.d
+**/*.su
+
+# OS junk
+.DS_Store
+Thumbs.db
