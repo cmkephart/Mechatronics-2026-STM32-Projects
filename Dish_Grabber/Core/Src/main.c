@@ -44,9 +44,14 @@
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-const char* modes[] = {"Plate", "Cup", "Bowl"};
+const char* modes[] = {"Plate", "Cup", "Bowl", "Manual"};
 int current_mode = 0; // Index to keep track of selection
-int state = 0;
+uint8_t state = 0;
+uint8_t cycle = 0;
+uint8_t top_prev_butt = GPIO_PIN_SET;
+uint8_t bot_prev_butt = GPIO_PIN_SET;
+uint8_t select = GPIO_PIN_RESET;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -200,6 +205,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  uint8_t top_curr_butt = HAL_GPIO_ReadPin(TOP_BUTT_GPIO_Port, TOP_BUTT_Pin);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -214,6 +220,17 @@ int main(void)
 	    // the button for cycling modes is pressed
 if(state == 0)
 	{
+	if (top_curr_butt == GPIO_PIN_RESET && prev_butt == GPIO_PIN_SET)
+	{
+		current_mode += 1;
+		HAL_Delay(20);
+	}
+	if (current_mode >= 3)
+	{
+	    current_mode = 0;
+	}
+	    top_prev_butt = top_curr_butt;
+
 	    sprintf(row1, "Select Mode: %-10s", modes[current_mode]);
 	    sprintf(row2, "Time: %lu us        ", echo_us);
 
