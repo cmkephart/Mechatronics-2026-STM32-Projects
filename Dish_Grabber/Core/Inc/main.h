@@ -71,6 +71,10 @@ void Error_Handler(void);
 #define BOT_BUTT_GPIO_Port GPIOA
 #define TRIG_Pin GPIO_PIN_5
 #define TRIG_GPIO_Port GPIOC
+#define RED_LED_Pin GPIO_PIN_14
+#define RED_LED_GPIO_Port GPIOB
+#define GREEN_LED_Pin GPIO_PIN_15
+#define GREEN_LED_GPIO_Port GPIOB
 #define E_Pin GPIO_PIN_10
 #define E_GPIO_Port GPIOA
 #define D7_Pin GPIO_PIN_10

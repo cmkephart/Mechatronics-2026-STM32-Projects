@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stdio.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -206,6 +206,7 @@ int main(void)
   while (1)
   {
 	  uint8_t top_curr_butt = HAL_GPIO_ReadPin(TOP_BUTT_GPIO_Port, TOP_BUTT_Pin);
+	  uint8_t bot_curr_butt = HAL_GPIO_ReadPin(BOT_BUTT_GPIO_Port, BOT_BUTT_Pin);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -220,19 +221,27 @@ int main(void)
 	    // the button for cycling modes is pressed
 if(state == 0)
 	{
-	if (top_curr_butt == GPIO_PIN_RESET && prev_butt == GPIO_PIN_SET)
+	if (top_curr_butt == GPIO_PIN_RESET && top_prev_butt == GPIO_PIN_SET)
 	{
 		current_mode += 1;
-		HAL_Delay(20);
+		HAL_Delay(10);
 	}
-	if (current_mode >= 3)
+	if (current_mode >= 4)
 	{
 	    current_mode = 0;
 	}
-	    top_prev_butt = top_curr_butt;
+	if (bot_curr_butt == GPIO_PIN_RESET && bot_prev_butt == GPIO_PIN_SET)
+	{
+		select ^= 1;
+		HAL_Delay(10);
+	}
 
-	    sprintf(row1, "Select Mode: %-10s", modes[current_mode]);
-	    sprintf(row2, "Time: %lu us        ", echo_us);
+	    top_prev_butt = top_curr_butt;
+	    bot_prev_butt = bot_curr_butt;
+
+	    sprintf(row1, "Select Mode: ");
+	    sprintf(row2, "%-10s ", modes[current_mode]);
+//	    sprintf(row2, "%-10s     %u", modes[current_mode],select);
 
 	    row1[16] = '\0';
 	    row2[16] = '\0';
@@ -242,7 +251,25 @@ if(state == 0)
 	    LCD_Set_Cursor(1, 0);
 	    LCD_Print(row2);
 
-	    HAL_Delay(200);
+	    if (select == 1)
+	    {
+	    	state = 1;
+	    }
+
+//	    HAL_Delay(10);
+	}
+// MOTOR MODE
+	if(select == 1 && current_mode = 3)
+	{
+		if (top_curr_butt == GPIO_PIN_RESET)
+		{
+			HAL_GPIO_WritePin(GPIOB, RED_LED_Pin,GPIO_PIN_SET);
+		}
+		if (bot_curr_butt == GPIO_PIN_RESET)
+		{
+			HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin,GPIO_PIN_SET);
+
+		}
 	}
   }
   /* USER CODE END 3 */
@@ -357,8 +384,8 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, USER_LED_Pin|E_Pin, GPIO_PIN_RESET);
@@ -367,10 +394,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, TRIG_Pin|D7_Pin|D6_Pin|D5_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(D4_GPIO_Port, D4_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, RED_LED_Pin|GREEN_LED_Pin|RS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(RS_GPIO_Port, RS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(D4_GPIO_Port, D4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_BLUE_USER_BUTTON_Pin */
   GPIO_InitStruct.Pin = B1_BLUE_USER_BUTTON_Pin;
@@ -406,19 +433,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : RED_LED_Pin GREEN_LED_Pin RS_Pin */
+  GPIO_InitStruct.Pin = RED_LED_Pin|GREEN_LED_Pin|RS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /*Configure GPIO pin : D4_Pin */
   GPIO_InitStruct.Pin = D4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(D4_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : RS_Pin */
-  GPIO_InitStruct.Pin = RS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(RS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : ECHO_Pin */
   GPIO_InitStruct.Pin = ECHO_Pin;
