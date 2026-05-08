@@ -53,6 +53,7 @@ uint8_t cycle = 0;
 uint8_t top_prev_butt = GPIO_PIN_SET;
 uint8_t bot_prev_butt = GPIO_PIN_SET;
 uint8_t select = GPIO_PIN_RESET;
+uint16_t touch = 0;
 
 /* USER CODE END PV */
 
@@ -206,12 +207,29 @@ int main(void)
 
   LCD_Send_Byte(0x01, 0);         // Clear display
   HAL_Delay(2);
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+  sConfig.Rank         = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SingleDiff   = ADC_SINGLE_ENDED;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset       = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+	  //This section is needed for reading from the analog pin. Essentially this gets the value of the voltage from that pin every time the while loop cycles.//
+	    sConfig.Channel = ADC_CHANNEL_0;
+	    HAL_ADC_ConfigChannel(&hadc1, &sConfig);
+	    HAL_ADC_Start(&hadc1);
+	    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+	    touch = HAL_ADC_GetValue(&hadc1);
+	    HAL_ADC_Stop(&hadc1);
+	    ///////////////////////////////////////////////////////////////////////////////
+
 	  uint8_t top_curr_butt = HAL_GPIO_ReadPin(TOP_BUTT_GPIO_Port, TOP_BUTT_Pin);
 	  uint8_t bot_curr_butt = HAL_GPIO_ReadPin(BOT_BUTT_GPIO_Port, BOT_BUTT_Pin);
     /* USER CODE END WHILE */
