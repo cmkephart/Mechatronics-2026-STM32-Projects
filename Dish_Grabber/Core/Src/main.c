@@ -247,6 +247,7 @@ if(state == 0)
 	if (top_curr_butt == GPIO_PIN_RESET && top_prev_butt == GPIO_PIN_SET)
 	{
 		current_mode += 1;
+		HAL_GPIO_TogglePin(GPIOB, RED_LED_Pin);
 		HAL_Delay(10);
 	}
 	if (current_mode >= 4)
@@ -256,6 +257,7 @@ if(state == 0)
 	if (bot_curr_butt == GPIO_PIN_RESET && bot_prev_butt == GPIO_PIN_SET)
 	{
 		select ^= 1;
+		HAL_GPIO_TogglePin(GPIOB, GREEN_LED_Pin);
 		HAL_Delay(10);
 	}
 
@@ -316,6 +318,15 @@ if(state == 0)
 // MOTOR MODE
 	if(state == 1)
 	{
+	    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+	    {
+	    	select = 0;
+	    	current_mode = 0;
+	    	state = 0;
+	    	HAL_Delay(10);
+	    }
+
+
 	    if (top_curr_butt == GPIO_PIN_RESET)        // Forward
 	    {
 	        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
@@ -336,13 +347,8 @@ if(state == 0)
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
 	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 	    }
-	    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
-	    {
-	    	select = 0;
-	    	current_mode == 0;
-	    	state = 0;
-	    	HAL_Delay(10);
-	    }
+	    bot_prev_butt = bot_curr_butt;
+
 	}
 	if(state == 2)
 	{
@@ -357,6 +363,15 @@ if(state == 0)
 		    sprintf(row2, "ADC: %u    ", touch);
 		    LCD_Set_Cursor(1, 0);
 		    LCD_Print(row2);
+
+		    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+		    {
+		    	select = 0;
+		    	current_mode = 0;
+		    	state = 0;
+	//	    	HAL_GPIO_TogglePin(GPIOB, GREEN_LED_Pin);
+		    	HAL_Delay(10);
+		    }
 		    // FSR pressed = higher voltage = higher ADC value
 		    // Threshold of 500 (out of 4095) — tune this to your sensor
 		    if (touch > 500)
@@ -367,6 +382,8 @@ if(state == 0)
 		    {
 		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 		    }
+		    bot_prev_butt = bot_curr_butt;
+
 
 
 
