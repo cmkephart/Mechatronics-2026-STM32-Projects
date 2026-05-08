@@ -52,6 +52,8 @@ uint8_t state = 0;
 uint8_t cycle = 0;
 uint8_t top_prev_butt = GPIO_PIN_SET;
 uint8_t bot_prev_butt = GPIO_PIN_SET;
+uint8_t ret_prev_butt = GPIO_PIN_SET;
+
 uint8_t select = GPIO_PIN_RESET;
 uint16_t touch = 0;
 
@@ -221,17 +223,13 @@ int main(void)
   while (1)
   {
 
-	  //This section is needed for reading from the analog pin. Essentially this gets the value of the voltage from that pin every time the while loop cycles.//
-	    sConfig.Channel = ADC_CHANNEL_0;
-	    HAL_ADC_ConfigChannel(&hadc1, &sConfig);
-	    HAL_ADC_Start(&hadc1);
-	    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-	    touch = HAL_ADC_GetValue(&hadc1);
-	    HAL_ADC_Stop(&hadc1);
+
 	    ///////////////////////////////////////////////////////////////////////////////
 
 	  uint8_t top_curr_butt = HAL_GPIO_ReadPin(TOP_BUTT_GPIO_Port, TOP_BUTT_Pin);
 	  uint8_t bot_curr_butt = HAL_GPIO_ReadPin(BOT_BUTT_GPIO_Port, BOT_BUTT_Pin);
+	  uint8_t ret_curr_butt = HAL_GPIO_ReadPin(RETURN_BUTT_GPIO_Port, RETURN_BUTT_Pin);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -276,7 +274,7 @@ if(state == 0)
 	    LCD_Set_Cursor(1, 0);
 	    LCD_Print(row2);
 
-	    if (select == 1)
+	    if (select == 1 && current_mode == 3)
 	    {
 	    	state = 1;
 		    LCD_Set_Cursor(0, 0);
@@ -285,11 +283,38 @@ if(state == 0)
 		    sprintf(row2, "%-16s", "");   // Left-justify empty string padded to 16 chars
 		    LCD_Print(row2);
 	    }
+	    if (select == 1 && current_mode == 0)
+	    {
+	    	state = 2;
+		    LCD_Set_Cursor(0, 0);
+		    LCD_Print("Plate Mode!    ");
+		    LCD_Set_Cursor(1, 0);
+		    sprintf(row2, "%-16s", "");   // Left-justify empty string padded to 16 chars
+		    LCD_Print(row2);
+	    }
+	    if (select == 1 && current_mode == 1)
+	    {
+	    	state = 3;
+		    LCD_Set_Cursor(0, 0);
+		    LCD_Print("Cup Mode!    ");
+		    LCD_Set_Cursor(1, 0);
+		    sprintf(row2, "%-16s", "");   // Left-justify empty string padded to 16 chars
+		    LCD_Print(row2);
+	    }
+	    if (select == 1 && current_mode == 2)
+	    {
+	    	state = 4;
+		    LCD_Set_Cursor(0, 0);
+		    LCD_Print("Bowl Mode!    ");
+		    LCD_Set_Cursor(1, 0);
+		    sprintf(row2, "%-16s", "");   // Left-justify empty string padded to 16 chars
+		    LCD_Print(row2);
+	    }
 
 //	    HAL_Delay(10);
 	}
 // MOTOR MODE
-	if(select == 1 && current_mode == 3)
+	if(state == 1)
 	{
 	    if (top_curr_butt == GPIO_PIN_RESET)        // Forward
 	    {
@@ -311,6 +336,40 @@ if(state == 0)
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
 	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 	    }
+	    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+	    {
+	    	select = 0;
+	    	current_mode == 0;
+	    	state = 0;
+	    	HAL_Delay(10);
+	    }
+	}
+	if(state == 2)
+	{
+		  //This section is needed for reading from the analog pin. Essentially this gets the value of the voltage from that pin every time the while loop cycles.//
+		    sConfig.Channel = ADC_CHANNEL_0;
+		    HAL_ADC_ConfigChannel(&hadc1, &sConfig);
+		    HAL_ADC_Start(&hadc1);
+		    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+		    touch = HAL_ADC_GetValue(&hadc1);
+		    HAL_ADC_Stop(&hadc1);
+
+		    sprintf(row2, "ADC: %u    ", touch);
+		    LCD_Set_Cursor(1, 0);
+		    LCD_Print(row2);
+		    // FSR pressed = higher voltage = higher ADC value
+		    // Threshold of 500 (out of 4095) — tune this to your sensor
+		    if (touch > 500)
+		    {
+		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
+		    }
+		    else
+		    {
+		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
+		    }
+
+
+
 	}
   }
   /* USER CODE END 3 */
@@ -619,11 +678,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(D4_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : ECHO_Pin */
-  GPIO_InitStruct.Pin = ECHO_Pin;
+  /*Configure GPIO pins : ECHO_Pin RETURN_BUTT_Pin */
+  GPIO_InitStruct.Pin = ECHO_Pin|RETURN_BUTT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(ECHO_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

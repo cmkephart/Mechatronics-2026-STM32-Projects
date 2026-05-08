@@ -93,6 +93,8 @@ void Error_Handler(void);
 #define RS_GPIO_Port GPIOB
 #define ECHO_Pin GPIO_PIN_7
 #define ECHO_GPIO_Port GPIOB
+#define RETURN_BUTT_Pin GPIO_PIN_8
+#define RETURN_BUTT_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
