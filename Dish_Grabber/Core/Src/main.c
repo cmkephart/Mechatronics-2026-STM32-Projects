@@ -223,7 +223,12 @@ int main(void)
   while (1)
   {
 
-
+	    sConfig.Channel = ADC_CHANNEL_0;
+	    HAL_ADC_ConfigChannel(&hadc1, &sConfig);
+	    HAL_ADC_Start(&hadc1);
+	    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+	    touch = HAL_ADC_GetValue(&hadc1);
+	    HAL_ADC_Stop(&hadc1);
 	    ///////////////////////////////////////////////////////////////////////////////
 
 	  uint8_t top_curr_butt = HAL_GPIO_ReadPin(TOP_BUTT_GPIO_Port, TOP_BUTT_Pin);
@@ -237,8 +242,8 @@ int main(void)
 	    char row2[32];
 
 	    uint32_t echo_us = Ultrasonic_Read();
-	    uint32_t dist_whole = echo_us / 58;
-	    uint32_t dist_frac  = (echo_us % 58) * 10 / 58;
+//	    uint32_t dist_whole = echo_us / 58;
+//	    uint32_t dist_frac  = (echo_us % 58) * 10 / 58;
 
 	    // Add a section of code here that changes an index of a variable whenever
 	    // the button for cycling modes is pressed
@@ -318,13 +323,7 @@ if(state == 0)
 // MOTOR MODE
 	if(state == 1)
 	{
-	    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
-	    {
-	    	select = 0;
-	    	current_mode = 0;
-	    	state = 0;
-	    	HAL_Delay(10);
-	    }
+
 
 
 	    if (top_curr_butt == GPIO_PIN_RESET)        // Forward
@@ -347,30 +346,51 @@ if(state == 0)
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
 	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 	    }
-	    bot_prev_butt = bot_curr_butt;
+	    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+	    {
+	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0); // stop motor
+	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
+	        select = 0;
+	        current_mode = 0;
+	        state = 0;
+	        HAL_Delay(10);
+	    }
 
 	}
+
+	// PLATE MODE///////
 	if(state == 2)
 	{
-		  //This section is needed for reading from the analog pin. Essentially this gets the value of the voltage from that pin every time the while loop cycles.//
-		    sConfig.Channel = ADC_CHANNEL_0;
-		    HAL_ADC_ConfigChannel(&hadc1, &sConfig);
-		    HAL_ADC_Start(&hadc1);
-		    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-		    touch = HAL_ADC_GetValue(&hadc1);
-		    HAL_ADC_Stop(&hadc1);
+
 
 		    sprintf(row2, "ADC: %u    ", touch);
 		    LCD_Set_Cursor(1, 0);
 		    LCD_Print(row2);
 
-		    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+
+
+		    // If the sight is less than 24.75 cm away, then bring it forward
+		    if (echo_us > 0 && echo_us < 1436)
 		    {
-		    	select = 0;
-		    	current_mode = 0;
-		    	state = 0;
-	//	    	HAL_GPIO_TogglePin(GPIOB, GREEN_LED_Pin);
-		    	HAL_Delay(10);
+		        // something is closer than 24.75 cm
+		        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period); // Full speed
+		        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
+		    }
+		    else if (echo_us > 1465)
+		    {
+		        // further than 25.25 cm — spin back to close in
+		        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
+		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period);
+		        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
+		    }
+		    else
+		    {
+		        // between 24.75 and 25.25 cm — stop (dead band)
+		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
+		        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+
 		    }
 		    // FSR pressed = higher voltage = higher ADC value
 		    // Threshold of 500 (out of 4095) — tune this to your sensor
@@ -382,12 +402,123 @@ if(state == 0)
 		    {
 		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 		    }
-		    bot_prev_butt = bot_curr_butt;
-
-
-
+		    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+		    {
+		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0); // stop motor
+		        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
+		        select = 0;
+		        current_mode = 0;
+		        state = 0;
+		        HAL_Delay(10);
+		    }
 
 	}
+	// CUP MODE/////////
+		if (state == 3)
+		{
+
+
+		    sprintf(row2, "ADC: %u    ", touch);
+		    LCD_Set_Cursor(1, 0);
+		    LCD_Print(row2);
+
+
+
+		    // If the sight is less than 24.75 cm away, then bring it forward
+		    if (echo_us > 0 && echo_us < 1813)
+		    {
+		        // something is closer than 24.75 cm
+		        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period); // Full speed
+		        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
+		    }
+		    else
+		    {
+		        // between 24.75 and 25.25 cm — stop (dead band)
+		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
+		        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+
+		    }
+		    // FSR pressed = higher voltage = higher ADC value
+		    // Threshold of 500 (out of 4095) — tune this to your sensor
+		    if (touch > 500)
+		    {
+		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
+		    }
+		    else
+		    {
+		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
+		    }
+		    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+		    {
+		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0); // stop motor
+		        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
+		        select = 0;
+		        current_mode = 0;
+		        state = 0;
+		        HAL_Delay(10);
+		    }
+		}
+	// BOWL MODE/////////
+	if (state == 4)
+	{
+
+
+	    sprintf(row2, "ADC: %u    ", touch);
+	    LCD_Set_Cursor(1, 0);
+	    LCD_Print(row2);
+
+
+
+	    // If the sight is less than 24.75 cm away, then bring it forward
+	    if (echo_us > 0 && echo_us < 1175)
+	    {
+	        // something is closer than 24.75 cm
+	        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period); // Full speed
+	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
+	    }
+	    else if (echo_us > 1204)
+	    {
+	        // further than 25.25 cm — spin back to close in
+	        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
+	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period);
+	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
+	    }
+	    else
+	    {
+	        // between 24.75 and 25.25 cm — stop (dead band)
+	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
+	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+
+	    }
+	    // FSR pressed = higher voltage = higher ADC value
+	    // Threshold of 500 (out of 4095) — tune this to your sensor
+	    if (touch > 500)
+	    {
+	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
+	    }
+	    else
+	    {
+	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
+	    }
+	    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+	    {
+	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0); // stop motor
+	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
+	        select = 0;
+	        current_mode = 0;
+	        state = 0;
+	        HAL_Delay(10);
+	    }
+	}
+
+
+    ret_prev_butt = ret_curr_butt;
+
   }
   /* USER CODE END 3 */
 }
