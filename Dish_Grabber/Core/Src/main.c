@@ -346,6 +346,16 @@ if(state == 0)
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
 	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 	    }
+	    // FSR pressed = higher voltage = higher ADC value
+	    // Threshold of 500 (out of 4095) — tune this to your sensor
+	    if (touch > 2000)
+	    {
+	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
+	    }
+	    else
+	    {
+	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
+	    }
 	    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
 	    {
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0); // stop motor
