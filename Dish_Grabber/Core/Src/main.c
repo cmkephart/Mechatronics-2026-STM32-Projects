@@ -53,7 +53,7 @@ uint8_t cycle = 0;
 uint8_t top_prev_butt = GPIO_PIN_SET;
 uint8_t bot_prev_butt = GPIO_PIN_SET;
 uint8_t ret_prev_butt = GPIO_PIN_SET;
-
+uint8_t positioned = 0;
 uint8_t select = GPIO_PIN_RESET;
 uint16_t touch = 0;
 
@@ -369,7 +369,8 @@ if(state == 0)
 		    LCD_Print(row2);
 
 
-
+		if(!positioned)
+		{
 		    // If the sight is less than 24.75 cm away, then bring it forward
 		    if (echo_us > 0 && echo_us < 1436)
 		    {
@@ -390,11 +391,13 @@ if(state == 0)
 		        // between 24.75 and 25.25 cm — stop (dead band)
 		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
 		        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+		        positioned = 1;
 
 		    }
+		}
 		    // FSR pressed = higher voltage = higher ADC value
 		    // Threshold of 500 (out of 4095) — tune this to your sensor
-		    if (touch > 500)
+		    if (touch > 2000)
 		    {
 		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
 		    }
@@ -402,6 +405,7 @@ if(state == 0)
 		    {
 		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 		    }
+
 		    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
 		    {
 		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0); // stop motor
@@ -410,6 +414,7 @@ if(state == 0)
 		        select = 0;
 		        current_mode = 0;
 		        state = 0;
+		        positioned = 0;
 		        HAL_Delay(10);
 		    }
 
@@ -424,9 +429,10 @@ if(state == 0)
 		    LCD_Print(row2);
 
 
-
+		if(!positioned)
+		{
 		    // If the sight is less than 24.75 cm away, then bring it forward
-		    if (echo_us > 0 && echo_us < 1813)
+		    if (echo_us < 1713)
 		    {
 		        // something is closer than 24.75 cm
 		        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
@@ -438,11 +444,13 @@ if(state == 0)
 		        // between 24.75 and 25.25 cm — stop (dead band)
 		        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
 		        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+		        positioned = 1;
 
 		    }
+		}
 		    // FSR pressed = higher voltage = higher ADC value
 		    // Threshold of 500 (out of 4095) — tune this to your sensor
-		    if (touch > 500)
+		    if (touch > 2000)
 		    {
 		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
 		    }
@@ -458,6 +466,7 @@ if(state == 0)
 		        select = 0;
 		        current_mode = 0;
 		        state = 0;
+		        positioned = 0;
 		        HAL_Delay(10);
 		    }
 		}
@@ -471,7 +480,8 @@ if(state == 0)
 	    LCD_Print(row2);
 
 
-
+	if(!positioned)
+	{
 	    // If the sight is less than 24.75 cm away, then bring it forward
 	    if (echo_us > 0 && echo_us < 1175)
 	    {
@@ -492,11 +502,13 @@ if(state == 0)
 	        // between 24.75 and 25.25 cm — stop (dead band)
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+	        positioned = 1;
 
 	    }
+	}
 	    // FSR pressed = higher voltage = higher ADC value
 	    // Threshold of 500 (out of 4095) — tune this to your sensor
-	    if (touch > 500)
+	    if (touch > 2000)
 	    {
 	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
 	    }
@@ -512,6 +524,7 @@ if(state == 0)
 	        select = 0;
 	        current_mode = 0;
 	        state = 0;
+	        positioned = 0;
 	        HAL_Delay(10);
 	    }
 	}
