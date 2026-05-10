@@ -249,6 +249,10 @@ int main(void)
 	    // the button for cycling modes is pressed
 if(state == 0)
 	{
+	if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+	{
+	    HAL_GPIO_TogglePin(USER_LED_GPIO_Port, USER_LED_Pin);
+	}
 	if (top_curr_butt == GPIO_PIN_RESET && top_prev_butt == GPIO_PIN_SET)
 	{
 		current_mode += 1;
@@ -337,8 +341,8 @@ if(state == 0)
 	    {
 	        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period); // Full speed
-	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
-	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
+	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
+	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 	    }
 	    else                                         // Stop
 	    {
@@ -346,16 +350,7 @@ if(state == 0)
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
 	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 	    }
-	    // FSR pressed = higher voltage = higher ADC value
-	    // Threshold of 500 (out of 4095) — tune this to your sensor
-	    if (touch > 2000)
-	    {
-	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
-	    }
-	    else
-	    {
-	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
-	    }
+
 	    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
 	    {
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0); // stop motor
