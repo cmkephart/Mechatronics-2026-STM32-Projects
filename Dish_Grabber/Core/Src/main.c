@@ -21,7 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdio.h>
+
+#include <stdio.h> 					//Include needed for writing to LCD
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,22 +41,29 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
 
-TIM_HandleTypeDef htim1;
-TIM_HandleTypeDef htim2;
+ADC_HandleTypeDef hadc1;                // ADC signal from the FSR
+
+TIM_HandleTypeDef htim1;                // PWM Timer for the motor
+TIM_HandleTypeDef htim2;				// Timer for the ultrasonic sensor
 
 /* USER CODE BEGIN PV */
-const char* modes[] = {"Plate", "Cup", "Bowl", "Manual"};
-int current_mode = 0; // Index to keep track of selection
-uint8_t state = 0;
-uint8_t cycle = 0;
+
+const char* modes[] = {"Plate", "Cup", "Bowl", "Manual"};  // Array of pointers for mode options
+int current_mode = 0;				    // Index to keep track of  mode selection
+uint8_t state = 0;     					// State Index
+//uint8_t cycle = 0;
+/* These next x_prev_butt variables record the value of the previous button
+ * state. This is to help de-bounce and make sure that the system only
+ * changes when a button goes from being un-pressed to pressed.
+ * Holding the button will not derail the system.*/
 uint8_t top_prev_butt = GPIO_PIN_SET;
 uint8_t bot_prev_butt = GPIO_PIN_SET;
 uint8_t ret_prev_butt = GPIO_PIN_SET;
-uint8_t positioned = 0;
-uint8_t select = GPIO_PIN_RESET;
-uint16_t touch = 0;
+
+uint8_t positioned = 0;                  // Indicates when the slider has reached its position
+uint8_t select = GPIO_PIN_RESET;         // Indicates when the select button has been pressed
+uint16_t touch = 0;                      // Stores the value of the voltage seen by the ADC input from the FSR
 
 /* USER CODE END PV */
 
@@ -71,8 +79,8 @@ static void MX_ADC1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-// --- Pulse the Enable pin to latch data ---
+/*These are the functions to initiate and enable to LCD and US capabilities.*/
+// Pulse the Enable pin to latch data ---
 static void LCD_Pulse_Enable(void)
 {
     HAL_GPIO_WritePin(GPIOA, E_Pin, GPIO_PIN_SET);
@@ -191,13 +199,15 @@ int main(void)
   MX_TIM1_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+  /*Initializes the PWM for the motor driver*/
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-
+  // Starts the timer 2 for the US
+  // Initializes the LCD and displays a message on startup
   HAL_TIM_Base_Start(&htim2);
   LCD_Init();
   LCD_Set_Cursor(0, 0);
   LCD_Print("Dirty Dishes!");
-
+// Counts down from 5 seconds after displaying the start screen
   char buf[4];
   for (int i = 5; i >= 1; i--)
   {
@@ -209,6 +219,8 @@ int main(void)
 
   LCD_Send_Byte(0x01, 0);         // Clear display
   HAL_Delay(2);
+
+  // Initializes reading from the ADC Input
 
   ADC_ChannelConfTypeDef sConfig = {0};
   sConfig.Rank         = ADC_REGULAR_RANK_1;
@@ -223,6 +235,8 @@ int main(void)
   while (1)
   {
 
+	  // Reads from the ADC Input every time the loop runs.
+
 	    sConfig.Channel = ADC_CHANNEL_0;
 	    HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 	    HAL_ADC_Start(&hadc1);
@@ -230,7 +244,7 @@ int main(void)
 	    touch = HAL_ADC_GetValue(&hadc1);
 	    HAL_ADC_Stop(&hadc1);
 	    ///////////////////////////////////////////////////////////////////////////////
-
+// Reads for an input from the button pins to see if a button is being pressed or not.
 	  uint8_t top_curr_butt = HAL_GPIO_ReadPin(TOP_BUTT_GPIO_Port, TOP_BUTT_Pin);
 	  uint8_t bot_curr_butt = HAL_GPIO_ReadPin(BOT_BUTT_GPIO_Port, BOT_BUTT_Pin);
 	  uint8_t ret_curr_butt = HAL_GPIO_ReadPin(RETURN_BUTT_GPIO_Port, RETURN_BUTT_Pin);
@@ -238,38 +252,47 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  // Sets up the rows of the LCD to be written to row by row.
 	    char row1[32];
 	    char row2[32];
 
-	    uint32_t echo_us = Ultrasonic_Read();
+	    uint32_t echo_us = Ultrasonic_Read();			// Stores the live readings from the US
 //	    uint32_t dist_whole = echo_us / 58;
 //	    uint32_t dist_frac  = (echo_us % 58) * 10 / 58;
 
-	    // Add a section of code here that changes an index of a variable whenever
-	    // the button for cycling modes is pressed
+/*Defined states for the system to operate in:
+ * State 0: Home menu
+ * 			- Here the user can cycle between operation modes and select
+ * 			the desired mode.
+ * 			- These modes are plate, cup, bowl, and manual
+ * 			- Once a mode is selected then it will go into the corresponding state.*/
 if(state == 0)
 	{
-	if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
-	{
-	    HAL_GPIO_TogglePin(USER_LED_GPIO_Port, USER_LED_Pin);
-	}
+	// For troubleshooting
+//	if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
+//	{
+//	    HAL_GPIO_TogglePin(USER_LED_GPIO_Port, USER_LED_Pin);
+//	}
+	// Cycle Button
 	if (top_curr_butt == GPIO_PIN_RESET && top_prev_butt == GPIO_PIN_SET)
 	{
 		current_mode += 1;
 		HAL_GPIO_TogglePin(GPIOB, RED_LED_Pin);
 		HAL_Delay(10);
 	}
+	// Resets the mode selection so that it doesn't overflow and continuously cycles
 	if (current_mode >= 4)
 	{
 	    current_mode = 0;
 	}
+	// Selection Button
 	if (bot_curr_butt == GPIO_PIN_RESET && bot_prev_butt == GPIO_PIN_SET)
 	{
 		select ^= 1;
 		HAL_GPIO_TogglePin(GPIOB, GREEN_LED_Pin);
 		HAL_Delay(10);
 	}
-
+// sets the new value of the previous button state for comparison
 	    top_prev_butt = top_curr_butt;
 	    bot_prev_butt = bot_curr_butt;
 
@@ -284,7 +307,9 @@ if(state == 0)
 	    LCD_Print(row1);
 	    LCD_Set_Cursor(1, 0);
 	    LCD_Print(row2);
-
+// These if statements check for what mode has been selected and displays on screen
+	    // This is handled here so that there is no need to constantly write to the
+	    // screen and to immediately transition to the corresponding state.
 	    if (select == 1 && current_mode == 3)
 	    {
 	    	state = 1;
@@ -325,32 +350,38 @@ if(state == 0)
 //	    HAL_Delay(10);
 	}
 // MOTOR MODE
+/*This is the state that holds the logic for the manual motor control
+ * This enables the user to press the top and bottom buttons to move
+ * the slider up and down the mechanism. Code was written to be safe
+ * so that the motor is only moving when it is told to. The third button
+ * on the breadboard also acts as an emergency stop button to cut off
+ * all power to the motor*/
 	if(state == 1)
 	{
 
 
 
-	    if (top_curr_butt == GPIO_PIN_RESET)        // Forward
+	    if (top_curr_butt == GPIO_PIN_RESET)        // Forward Motion
 	    {
 	        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period); // Full speed
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
 	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 	    }
-	    else if (bot_curr_butt == GPIO_PIN_RESET)   // Reverse
+	    else if (bot_curr_butt == GPIO_PIN_RESET)   // Reverse Motion
 	    {
 	        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period); // Full speed
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
 	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 	    }
-	    else                                         // Stop
+	    else                                         // Stop the motor
 	    {
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0); // 0% duty = off
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
 	        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_RESET);
 	    }
-
+// Stops all power to the motor and brings the state back to the selection menu
 	    if (ret_curr_butt == GPIO_PIN_RESET && ret_prev_butt == GPIO_PIN_SET)
 	    {
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0); // stop motor
@@ -365,6 +396,10 @@ if(state == 0)
 	}
 
 	// PLATE MODE///////
+	/*Contains logic for the plate mode
+	 * Utilizes US distance data to mode the slider to a pre-determined distance
+	 * away from the base. Logic is similar to the manual motor mode but now has no
+	 * inputs from the user. The third button remains as a reset and stop button */
 	if(state == 2)
 	{
 
@@ -402,6 +437,8 @@ if(state == 0)
 		}
 		    // FSR pressed = higher voltage = higher ADC value
 		    // Threshold of 500 (out of 4095) — tune this to your sensor
+		// Enables functionality of using the touch pad to light up a green
+		//LED to indicate that pressure is being applied
 		    if (touch > 2000)
 		    {
 		        HAL_GPIO_WritePin(GPIOB, GREEN_LED_Pin, GPIO_PIN_SET);
@@ -425,6 +462,10 @@ if(state == 0)
 
 	}
 	// CUP MODE/////////
+	/*Contains the logic for the cup mode.
+	 * Similar to plate mode, but now the distance has changed
+	 * and the logic now operates as a hard stop rather than
+	 * a range of values. Same touch and stop button functionality.*/
 		if (state == 3)
 		{
 
@@ -476,6 +517,8 @@ if(state == 0)
 		    }
 		}
 	// BOWL MODE/////////
+		/*Contains the logic for the bowl mode.
+		 * Similar to plate mode. Same touch and stop button functionality.*/
 	if (state == 4)
 	{
 
@@ -487,24 +530,20 @@ if(state == 0)
 
 	if(!positioned)
 	{
-	    // If the sight is less than 24.75 cm away, then bring it forward
 	    if (echo_us > 0 && echo_us < 1175)
 	    {
-	        // something is closer than 24.75 cm
 	        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period); // Full speed
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
 	    }
 	    else if (echo_us > 1204)
 	    {
-	        // further than 25.25 cm — spin back to close in
 	        HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, htim1.Init.Period);
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_SET);
 	    }
 	    else
 	    {
-	        // between 24.75 and 25.25 cm — stop (dead band)
 	        __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
 	        HAL_GPIO_WritePin(GPIOB, RED_LED_Pin, GPIO_PIN_RESET);
 	        positioned = 1;
